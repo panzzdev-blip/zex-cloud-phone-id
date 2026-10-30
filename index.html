@@ -392,6 +392,14 @@ document.getElementById("profileForm").addEventListener("submit",e=>{e.preventDe
 document.getElementById("profileColor").addEventListener("change",e=>setAccent(e.target.value));
 renderDevices();loadProfile();
 setTimeout(()=>document.getElementById("loadingScreen").classList.add("done"),1250);
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>const SUPABASE_URL = "https://vmhhqcwdcsxtxmmfzeao.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TA59xJjMjN2Fk0HeRQ2vHQ_fo_6w2Kz";
+
+const { createClient } = window.supabase;
+
+const supabaseClient = createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 </body>
 </html>

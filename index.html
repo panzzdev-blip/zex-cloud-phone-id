@@ -376,11 +376,108 @@ function toggleDevice(id){
   d.status=d.status==="online"?"offline":"starting";saveDevices();renderDevices();closeModal();showToast(d.status==="starting"?"Simulasi perangkat sedang starting…":"Perangkat demo dihentikan.");
   if(d.status==="starting")setTimeout(()=>{const current=devices.find(x=>x.id===id);if(current&&current.status==="starting"){current.status="online";saveDevices();renderDevices();showToast("Status demo berubah menjadi Online.");}},1400);
 }
-function openAuthModal(){openModal("Login / Daftar",`<div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" placeholder="nama@email.com" autocomplete="email"></div><div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" placeholder="Minimal 8 karakter" autocomplete="current-password"></div><div class="modal-actions"><button class="secondary-btn" id="authRegister">Daftar</button><button class="primary-btn" id="authLogin">Login</button></div><button class="secondary-btn" id="googleLogin" style="width:100%;margin-top:11px;background:var(--surface)">◉ &nbsp; Lanjutkan dengan Google</button><p class="helper" style="margin-top:15px">Demo UI: autentikasi belum terhubung. Jangan masukkan password asli. Login Google membutuhkan OAuth dan backend yang dikonfigurasi.</p>`);
-  document.getElementById("authRegister").addEventListener("click",()=>showToast("Registrasi belum aktif: hubungkan Supabase/Firebase."));
-  document.getElementById("authLogin").addEventListener("click",()=>showToast("Login belum aktif: hubungkan backend autentikasi."));
-  document.getElementById("googleLogin").addEventListener("click",()=>showToast("Login Google belum aktif: konfigurasi OAuth diperlukan."));
+
+function openAuthModal() {
+  openModal("Login / Daftar", `
+    <div class="field">
+      <label for="authEmail">Email</label>
+      <input id="authEmail" type="email"
+        placeholder="nama@email.com"
+        autocomplete="email">
+    </div>
+
+    <div class="field">
+      <label for="authPassword">Password</label>
+      <input id="authPassword" type="password"
+        placeholder="Minimal 8 karakter"
+        autocomplete="current-password">
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary-btn" id="authRegister">
+        Daftar
+      </button>
+      <button class="primary-btn" id="authLogin">
+        Login
+      </button>
+    </div>
+
+    <button class="secondary-btn" id="authLogout"
+      style="width:100%;margin-top:11px">
+      Logout
+    </button>
+
+    <p class="helper" style="margin-top:15px">
+      ZEX Cloud Phone ID Account
+    </p>
+  `);
+
+  const emailInput = document.getElementById("authEmail");
+  const passwordInput = document.getElementById("authPassword");
+
+  document.getElementById("authRegister").onclick = async () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || password.length < 8) {
+      showToast("Masukkan email dan password minimal 8 karakter.");
+      return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password
+    });
+
+    if (error) {
+      showToast(error.message);
+      return;
+    }
+
+    if (data.user && data.session) {
+      await saveUserProfile(data.user);
+      showToast("Akun ZEX berhasil dibuat!");
+    } else {
+      showToast("Pendaftaran berhasil. Periksa email untuk konfirmasi.");
+    }
+  };
+
+  document.getElementById("authLogin").onclick = async () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      showToast("Email dan password wajib diisi.");
+      return;
+    }
+
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) {
+      showToast(error.message);
+      return;
+    }
+
+    await saveUserProfile(data.user);
+    showToast("Berhasil login ke ZEX Cloud Phone ID!");
+  };
+
+  document.getElementById("authLogout").onclick = async () => {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      showToast(error.message);
+      return;
+    }
+
+    showToast("Berhasil logout.");
+  };
 }
+
 document.getElementById("authTopBtn").addEventListener("click",openAuthModal);
 document.getElementById("authProfileBtn").addEventListener("click",openAuthModal);
 document.getElementById("redeemBtn").addEventListener("click",()=>{openModal("Kode Redeem",`<form id="redeemForm"><div class="field"><label for="redeemCode">Kode redeem</label><input id="redeemCode" placeholder="ZEX-WELCOME" required></div><p class="helper">Sistem redeem belum terhubung ke server.</p><div class="modal-actions"><button type="button" class="secondary-btn" id="redeemCancel">Batal</button><button class="primary-btn">Periksa Kode</button></div></form>`);document.getElementById("redeemCancel").addEventListener("click",closeModal);document.getElementById("redeemForm").addEventListener("submit",e=>{e.preventDefault();showToast("Kode belum bisa diverifikasi pada versi demo.");closeModal();});});
@@ -401,5 +498,35 @@ const supabaseClient = createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
 );
+
+let currentUser = null;
+
+async function saveUserProfile(user) {
+  if (!user) return;
+
+  const emailName = (user.email || "user").split("@")[0];
+  const username =
+    user.user_metadata?.username ||
+    `${emailName}_${user.id.slice(0, 5)}`;
+
+  const { error } = await supabaseClient
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        username,
+        display_name: emailName
+      },
+      { onConflict: "id" }
+    );
+
+  if (error) {
+    console.error("Profile error:", error.message);
+  }
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  currentUser = session?.user || null;
+});
 </body>
 </html>

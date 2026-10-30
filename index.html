@@ -942,10 +942,12 @@
         currentUser = session?.user || null;
       });
     }
-
+    
     devices = readStoredDevices();
     renderDevices();
     loadProfile();
+
+    setTimeout(()=>document.getElementById("loadingScreen").classList.add("done"),1250);
   </script>
 </body>
 </html>
